@@ -1,10 +1,9 @@
 # Flow Modules
 
 <!-- markdownlint-disable MD033 -->
-<a href="https://grafana.com">
-  <img height="20" src="https://img.shields.io/badge/grafana-%23F46800.svg?style=for-the-badge&logo=grafana&logoColor=white" alt="Grafana" />
-</a>
-
+<p align="center">
+    <img src="docs/sources/assets/logo_alloy_light.svg" alt="Grafana Alloy logo" height="100px">
+</p>
 <p align="center"><img src="assets/logo_alloy_light.svg" alt="Grafana Agent logo"></p>
 
 **NOTE: This is only to be used for Modules not Modules Classic.**
