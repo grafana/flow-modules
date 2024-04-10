@@ -1,0 +1,26 @@
+/*
+Module: relabelings-ingress
+Description: Handles relabelings for ingress that are common across sources i.e. metrics and logs.  The labels
+             may still be dropped through metric relabelings, pipeline stages, etc.
+*/
+declare "ingress" {
+  argument "targets" {
+    comment = "Must be a list() of targets"
+  }
+
+  export "output" {
+    value = discovery.relabel.ingress.output
+  }
+
+  // ingress relabelings (pre-scrape)
+  discovery.relabel "ingress" {
+    targets = argument.targets.value
+
+    // the ingress name
+    rule {
+      action = "replace"
+      source_labels = ["__meta_kubernetes_ingress_name"]
+      target_label = "ingress_name"
+    }
+  }
+}

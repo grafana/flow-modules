@@ -1,0 +1,26 @@
+/*
+Module: relabelings-endpointslice
+Description: Handles relabelings for endpointslice that are common across sources i.e. metrics and logs.  The labels
+             may still be dropped through metric relabelings, pipeline stages, etc.
+*/
+declare "endpointslice" {
+  argument "targets" {
+    comment = "Must be a list() of targets"
+  }
+
+  export "output" {
+    value = discovery.relabel.endpointslice.output
+  }
+
+  // ingress relabelings (pre-scrape)
+  discovery.relabel "endpointslice" {
+    targets = argument.targets.value
+
+    // the endpointslice name
+    rule {
+      action = "replace"
+      source_labels = ["__meta_kubernetes_endpointslice_name"]
+      target_label = "endpointslice_name"
+    }
+  }
+}

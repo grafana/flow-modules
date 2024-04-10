@@ -1,0 +1,32 @@
+/*
+Module: relabelings-node
+Description: Handles relabelings for node that are common across sources i.e. metrics and logs.  The labels
+             may still be dropped through metric relabelings, pipeline stages, etc.
+*/
+declare "node" {
+  argument "targets" {
+    comment = "Must be a list() of targets"
+  }
+
+  export "output" {
+    value = discovery.relabel.node.output
+  }
+
+  // node relabelings (pre-scrape)
+  discovery.relabel "node" {
+    targets = argument.targets.value
+
+    // the node name
+    rule {
+      action = "replace"
+      source_labels = ["__meta_kubernetes_node_name"]
+      target_label = "node"
+    }
+    // The cloud provider's name for the node object.
+    rule {
+      action = "replace"
+      source_labels = ["__meta_kubernetes_node_provider_id"]
+      target_label = "provider_id"
+    }
+  }
+}

@@ -1,0 +1,49 @@
+/*
+Module: relabelings-endpoints
+Description: Handles relabelings for endpoints that are common across sources i.e. metrics and logs.  The labels
+             may still be dropped through metric relabelings, pipeline stages, etc.
+*/
+declare "endpoints" {
+  argument "targets" {
+    comment = "Must be a list() of targets"
+  }
+
+  export "output" {
+    value = discovery.relabel.endpoints.output
+  }
+
+  // service relabelings (pre-scrape)
+  discovery.relabel "endpoints" {
+    targets = argument.targets.value
+
+    // the service name
+    rule {
+      action = "replace"
+      source_labels = [
+        "__meta_kubernetes_service_name",
+        "__meta_kubernetes_endpoints_name",
+      ]
+      target_label = "service"
+    }
+
+    // set whether or not the service is headless, by checking for the existence of a label:
+    // service.kubernetes.io/headless: ""
+    rule {
+      action = "replace"
+      replacement = "false"
+      target_label = "__tmp_headless"
+    }
+    rule {
+      action = "replace"
+      source_labels = [
+        "__meta_kubernetes_endpoints_labelpresent_service_kubernetes_io_headless",
+        "__meta_kubernetes_endpoints_label_variant",
+        "__meta_kubernetes_service_labelpresent_service_kubernetes_io_headless",
+        "__meta_kubernetes_service_label_variant",
+      ]
+      regex = "^(?:;*)?(true|headless).*$"
+      replacement = "true"
+      target_label = "__tmp_headless"
+    }
+  }
+}

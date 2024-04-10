@@ -1,0 +1,88 @@
+/*
+Module: job-etcd
+Description: Scrapes etcd
+
+Note: Every argument except for "forward_to" is optional, and does have a defined default value.  However, the values for these
+      arguments are not defined using the default = " ... " argument syntax, but rather using the coalesce(argument.value, " ... ").
+      This is because if the argument passed in from another consuming module is set to null, the default = " ... " syntax will
+      does not override the value passed in, where coalesce() will return the first non-null value.
+*/
+
+declare "pod" {
+  argument "targets" {
+    comment = "Must be a list() of targets"
+  }
+
+  export "output" {
+    value = discovery.relabel.pod.output
+  }
+
+  // pod relabelings (pre-scrape)
+  discovery.relabel "pod" {
+    targets = argument.targets.value
+
+    // set the node label as the name of the worker node the pod is on
+    rule {
+      action = "replace"
+      source_labels = ["__meta_kubernetes_pod_node_name"]
+      target_label = "node"
+    }
+
+    // set the pod name label
+    rule {
+      action = "replace"
+      source_labels = ["__meta_kubernetes_pod_name"]
+      target_label = "pod"
+    }
+
+    // set the container label
+    rule {
+      action = "replace"
+      source_labels = ["__meta_kubernetes_pod_container_name"]
+      target_label = "container"
+    }
+
+    // set a workload label
+    rule {
+      source_labels = [
+        "__meta_kubernetes_pod_controller_kind",
+        "__meta_kubernetes_pod_controller_name",
+      ]
+      separator = "/"
+      target_label  = "workload"
+    }
+    // remove the hash from the ReplicaSet
+    rule {
+      source_labels = ["workload"]
+      regex = "(ReplicaSet/.+)-.+"
+      target_label  = "workload"
+    }
+
+    // set the app name if specified as metadata labels "app:" or "app.kubernetes.io/name:" or "k8s-app:"
+    rule {
+      action = "replace"
+      source_labels = [
+        "__meta_kubernetes_pod_label_app_kubernetes_io_name",
+        "__meta_kubernetes_pod_label_k8s_app",
+        "__meta_kubernetes_pod_label_app",
+      ]
+      separator = ";"
+      regex = "^(?:;*)?([^;]+).*$"
+      replacement = "$1"
+      target_label = "app"
+    }
+
+    // set the component if specified as metadata labels "component:" or "app.kubernetes.io/component:" or "k8s-component:"
+    rule {
+      action = "replace"
+      source_labels = [
+        "__meta_kubernetes_pod_label_app_kubernetes_io_component",
+        "__meta_kubernetes_pod_label_k8s_component",
+        "__meta_kubernetes_pod_label_component",
+      ]
+      regex = "^(?:;*)?([^;]+).*$"
+      replacement = "$1"
+      target_label = "component"
+    }
+  }
+}
