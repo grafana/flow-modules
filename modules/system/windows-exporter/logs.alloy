@@ -1,0 +1,94 @@
+
+declare "event_log" {
+  argument "forward_to" {
+    comment = "Must be a list(LogsReceiver) where collected logs should be forwarded to"
+  }
+
+  argument "eventlog_name" {
+    comment = "Event Log to read from. i.e. Application or System"
+  }
+
+  argument "job_label" {
+    comment = "The job label to add for all windows event logs (default: integrations/windows_exporter)"
+    default = "integrations/windows_exporter"
+    optional = true
+  }
+
+  argument "poll_interval" {
+    comment = "How often to poll the event log."
+    optional = true
+  }
+
+  argument "bookmark_path" {
+    comment = "Keeps position in event log. Must specify separate bookmark_path for each eventlog being monitored."
+    optional = true
+  }
+
+  loki.source.windowsevent "eventlog" {
+    locale                 = 1033
+    eventlog_name          = argument.eventlog_name.value
+    bookmark_path          = colesce(argument.bookmark_path.value, concat(["./bookmarks-", argument.eventlog_name.value, ".xml"]))
+    poll_interval          = colesce(argument.poll_interval.value, "0s")
+    use_incoming_timestamp = true
+    forward_to             = [loki.relabel.event_logs.receiver]
+    labels                 = {
+      instance = constants.hostname,
+      job      = colesce(argument.job_label.value, "integrations/windows_exporter"),
+    }
+  }
+
+  loki.relabel "event_logs" {
+    forward_to = [loki.process.event_logs.receiver]
+
+    rule {
+      source_labels = ["computer"]
+      target_label  = "agent_hostname"
+    }
+  }
+
+  loki.process "event_logs" {
+    forward_to = argument.forward_to.value
+
+    stage.json {
+      expressions = {
+        level  = "levelText",
+        source = "source",
+      }
+    }
+
+    stage.labels {
+      values = {
+        level  = "",
+        source = "",
+      }
+    }
+  }
+}
+
+declare "app_logs" {
+  argument "path_targets" {
+    comment = "Targets to expand; looks for glob patterns on the __path__ and __path_exclude__ keys."
+  }
+
+  argument "forward_to" {
+    comment = ""
+  }
+
+  local.file_match "app_logs" {
+    path_targets = argument.path_targets.value
+  }
+
+  loki.source.file "app_logs" {
+    targets = local.file_match.app_logs.targets
+    forward_to = loki.relabel.app_logs.receiver
+  }
+
+  loki.relabel "app_logs" {
+    forward_to = [loki.process.event_logs.receiver]
+
+    rule {
+      source_labels = ["computer"]
+      target_label  = "agent_hostname"
+    }
+  }
+}
