@@ -1,0 +1,61 @@
+declare "journal" {
+  argument "forward_to" {
+    comment = "Must be a list(LogsReceiver) where collected logs should be forwarded to"
+  }
+
+  argument "matches" {
+    comment = "Journal matches to filter. The + character is not supported, only logical AND matches will be added."
+    optional = true
+  }
+
+  loki.source.journal "logs_integrations_integrations_node_exporter_journal_scrape" {
+    max_age       = "24h0m0s"
+    relabel_rules = discovery.relabel.logs_integrations_integrations_node_exporter_journal_scrape.rules
+    forward_to    = argument.forward_to.value
+    matches       = coelsce(argument.matches.value, "")
+  }
+}
+
+declare "file_logs"{
+  argument "forward_to" {
+    comment = "Must be a list(LogsReceiver) where collected logs should be forwarded to"
+  }
+
+  local.file_match "logs_integrations_integrations_node_exporter_direct_scrape" {
+    path_targets = [{
+      __address__ = "localhost",
+      __path__    = "/var/log/{syslog,messages,*.log}",
+      instance    = constants.hostname,
+      job         = "integrations/node_exporter",
+    }]
+  }
+
+  discovery.relabel "logs_integrations_integrations_node_exporter_journal_scrape" {
+    targets = []
+
+    rule {
+      source_labels = ["__journal__systemd_unit"]
+      target_label  = "unit"
+    }
+
+    rule {
+      source_labels = ["__journal__boot_id"]
+      target_label  = "boot_id"
+    }
+
+    rule {
+      source_labels = ["__journal__transport"]
+      target_label  = "transport"
+    }
+
+    rule {
+      source_labels = ["__journal_priority_keyword"]
+      target_label  = "level"
+    }
+  }
+
+  loki.source.file "logs_integrations_integrations_node_exporter_direct_scrape" {
+    targets    = local.file_match.logs_integrations_integrations_node_exporter_direct_scrape.targets
+    forward_to = argument.forward_to.value
+  }
+}
